@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>日期假期查詢器 — Nager.Date</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --border: #475569;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .container { max-width: 880px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { margin: 0 0 6px; font-size: 28px; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .field { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 13px; color: var(--muted); }
+  select, input[type="date"] {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card2);
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: transform .05s, opacity .2s;
+  }
+  button:hover { opacity: .9; }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .result { display: none; }
+  .result.show { display: block; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 15px;
+  }
+  .status.holiday { background: rgba(248,113,113,.15); color: var(--danger); }
+  .status.free { background: rgba(52,211,153,.15); color: var(--ok); }
+  .status.weekend { background: rgba(251,191,36,.15); color: var(--warn); }
+  .big { font-size: 22px; font-weight: 700; margin: 8px 0 4px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .holiday-item {
+    background: var(--card2);
+    border-left: 4px solid var(--danger);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 10px;
+  }
+  .holiday-item .name { font-weight: 600; font-size: 16px; }
+  .holiday-item .local { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 12px; padding: 3px 8px; border-radius: 6px;
+    background: rgba(56,189,248,.15); color: var(--accent);
+  }
+  .tag.type { background: rgba(129,140,248,.15); color: var(--accent2); }
+  .tag.global { background: rgba(52,211,153,.15); color: var(--ok); }
+  .tag.county { background: rgba(251,191,36,.15); color: var(--warn); }
+  .list { margin-top: 12px; }
+  .list-item {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-date { color: var(--muted); min-width: 96px; }
+  .error { color: var(--danger); }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--muted); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg);} }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 20px; }
+  a { color: var(--accent); }
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; margin-top: 12px; }
+  .info-box { background: var(--card2); border-radius: 8px; padding: 10px 12px; }
+  .info-box .k { font-size: 12px; color: var(--muted); }
+  .info-box .v { font-size: 15px; font-weight: 600; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📅 日期假期查詢器</h1>
+    <p>輸入國家與日期，查詢是否為公眾假期（資料來源：<a href="https://date.nager.at" target="_blank" rel="noopener">Nager.Date</a> 公開 API）</p>
+  </header>
+
+  <div class="card">
+    <div class="row">
+      <div class="field">
+        <label for="country">國家 / 地區</label>
+        <select id="country" disabled><option>載入中…</option></select>
+      </div>
+      <div class="field">
+        <label for="date">日期</label>
+        <input type="date" id="date" />
+      </div>
+      <div>
+        <button id="checkBtn">查詢</button>
+      </div>
+    </div>
+    <div id="loadStatus" class="muted" style="margin-top:8px;"></div>
+  </div>
+
+  <div class="card result" id="result">
+    <div class="big" id="resDate"></div>
+    <div class="muted" id="resCountry"></div>
+
+    <div style="margin-top:12px;">
+      <span class="status" id="statusBadge"></span>
+    </div>
+
+    <div class="info-grid" id="infoGrid"></div>
+
+    <div id="holidayList"></div>
+
+    <div style="margin-top:16px;">
+      <div class="muted" style="margin-bottom:6px;">接下來的公眾假期</div>
+      <div class="list" id="upcomingList"></div>
+    </div>
+  </div>
+
+  <div class="card" id="errorCard" style="display:none;">
+    <span class="error" id="errorMsg"></span>
+  </div>
+
+  <footer>
+    資料由 Nager.Date 提供 · 僅供參考 · 週末判定以週六／週日為準（部分國家週末不同）
+  </footer>
+</div>
+
+<script>
+const API = "https://date.nager.at/api/v3";
+const cache = new Map(); // key: code-year -> Promise<Array>
+
+const countrySel = document.getElementById("country");
+const dateInput = document.getElementById("date");
+const checkBtn = document.getElementById("checkBtn");
+const resultEl = document.getElementById("result");
+const errorCard = document.getElementById("errorCard");
+const errorMsg = document.getElementById("errorMsg");
+const loadStatus = document.getElementById("loadStatus");
+
+// default date = today
+const today = new Date();
+const pad = (n) => String(n).padStart(2, "0");
+dateInput.value = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+
+async function loadCountries() {
+  try {
+    loadStatus.textContent = "載入國家清單中…";
+    const res = await fetch(`${API}/AvailableCountries?_=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    data.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
+    countrySel.innerHTML = "";
+    for (const c of data) {
+      const opt = document.createElement("option");
+      opt.value = c.countryCode;
+      opt.textContent = `${c.name} (${c.countryCode})`;
+      countrySel.appendChild(opt);
+    }
+    // default US? try to find TW then US
+    const tw = data.find(c => c.countryCode === "TW");
+    const us = data.find(c => c.countryCode === "US");
+    if (tw) countrySel.value = "TW";
+    else if (us) countrySel.value = "US";
+    countrySel.disabled = false;
+    loadStatus.textContent = `已載入 ${data.length} 個國家/地區`;
+  } catch (e) {
+    loadStatus.innerHTML = `<span class="error">載入失敗：${escapeHtml(e.message)}</span>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+async function fetchHolidays(code, year) {
+  const key = `${code}-${year}`;
+  if (cache.has(key)) return cache.get(key);
+  const p = (async () => {
+    const res = await fetch(`${API}/PublicHolidays/${year}/${code}?_=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) {
+      if (res.status === 404) return [];
+      throw new Error(`HTTP ${res.status}`);
+    }
+    return await res.json();
+  })();
+  cache.set(key, p);
+  try { await p; }
+  catch (e) { cache.delete(key); throw e; }
+  return p;
+}
+
+function weekdayName(d) {
+  const names = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+  return names[d.getDay()];
+}
+
+function isWeekend(d) {
+  const day = d.getDay();
+  return day === 0 || day === 6;
+}
+
+async function check() {
+  const code = countrySel.value;
+  const dateStr = dateInput.value;
+  if (!code || !dateStr) {
+    showError("請選擇國家與日期");
+    return;
+  }
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) { showError("日期格式不正確"); return; }
+  const countryName = countrySel.options[countrySel.selectedIndex].text;
+  checkBtn.disabled = true;
+  checkBtn.innerHTML = '<span class="spinner"></span>';
+  errorCard.style.display = "none";
+  try {
+    const year = d.getFullYear();
+    const holidays = await fetchHolidays(code, year);
+    const matches = holidays.filter(h => h.date === dateStr);
+
+    // upcoming: this year + next year
+    let nextYearHolidays = [];
+    try { nextYearHolidays = await fetchHolidays(code, year + 1); } catch (e) { nextYearHolidays = []; }
+    const all = holidays.concat(nextYearHolidays);
+    const upcoming = all
+      .filter(h => h.date >= dateStr)
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .slice(0, 6);
+    // dedupe by date+name
+    const seen = new Set();
+    const upcomingUnique = upcoming.filter(h => {
+      const k = h.date + "|" + h.name;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 5);
+
+    renderResult(d, countryName, matches, upcomingUnique);
+  } catch (e) {
+    showError("查詢失敗：" + e.message);
+  } finally {
+    checkBtn.disabled = false;
+    checkBtn.textContent = "查詢";
+  }
+}
+
+function renderResult(d, countryName, matches, upcoming) {
+  resultEl.classList.add("show");
+  document.getElementById("resDate").textContent =
+    `${d.getFullYear()} 年 ${d.getMonth()+1} 月 ${d.getDate()} 日　${weekdayName(d)}`;
+  document.getElementById("resCountry").textContent = countryName;
+
+  const badge = document.getElementById("statusBadge");
+  const infoGrid = document.getElementById("infoGrid");
+  const holidayList = document.getElementById("holidayList");
+
+  if (matches.length > 0) {
+    badge.className = "status holiday";
+    badge.textContent = "🎉 公眾假期";
+  } else if (isWeekend(d)) {
+    badge.className = "status weekend";
+    badge.textContent = "📅 週末";
+  } else {
+    badge.className = "status free";
+    badge.textContent = "✅ 非假期（工作日）";
+  }
+
+  // info grid
+  infoGrid.innerHTML = "";
+  const boxes = [
+    { k: "星期", v: weekdayName(d) },
+    { k: "是否週末", v: isWeekend(d) ? "是" : "否" },
+    { k: "假期筆數", v: matches.length },
+    { k: "類型", v: matches.length ? [...new Set(matches.flatMap(m => m.types || []))].join("、") : "—" },
+  ];
+  for (const b of boxes) {
+    const div = document.createElement("div");
+    div.className = "info-box";
+    div.innerHTML = `<div class="k">${escapeHtml(b.k)}</div><div class="v">${escapeHtml(b.v)}</div>`;
+    infoGrid.appendChild(div);
+  }
+
+  // holiday details
+  holidayList.innerHTML = "";
+  if (matches.length === 0) {
+    const p = document.createElement("div");
+    p.className = "muted";
+    p.style.marginTop = "12px";
+    p.textContent = "此日期在所選國家/地區沒有登記的公眾假期。";
+    holidayList.appendChild(p);
+  } else {
+    for (const h of matches) {
+      const item = document.createElement("div");
+      item.className = "holiday-item";
+      const tags = [];
+      if (h.global) tags.push(`<span class="tag global">全國性</span>`);
+      else tags.push(`<span class="tag">地區性</span>`);
+      (h.types || []).forEach(t => tags.push(`<span class="tag type">${escapeHtml(t)}</span>`));
+      if (h.fixed) tags.push(`<span class="tag">固定日期</span>`);
+      if (h.counties && h.counties.length) {
+        h.counties.forEach(c => tags.push(`<span class="tag county">${escapeHtml(c)}</span>`));
+      }
+      item.innerHTML = `
+        <div class="name">${escapeHtml(h.name || h.localName)}</div>
+        ${h.localName && h.localName !== h.name ? `<div class="local">當地名稱：${escapeHtml(h.localName)}</div>` : ""}
+        <div class="tags">${tags.join("")}</div>
+      `;
+      holidayList.appendChild(item);
+    }
+  }
+
+  // upcoming
+  const upcomingList = document.getElementById("upcomingList");
+  upcomingList.innerHTML = "";
+  if (upcoming.length === 0) {
+    upcomingList.innerHTML = `<div class="muted">無後續假期資料</div>`;
+  } else {
+    for (const h of upcoming) {
+      const li = document.createElement("div");
+      li.className = "list-item";
+      li.innerHTML = `<span class="list-date">${escapeHtml(h.date)}</span><span>${escapeHtml(h.localName || h.name)}${h.name && h.name !== h.localName ? ` <span class="muted">(${escapeHtml(h.name)})</span>` : ""}</span>`;
+      upcomingList.appendChild(li);
+    }
+  }
+}
+
+function showError(msg) {
+  errorCard.style.display = "block";
+  errorMsg.textContent = msg;
+  resultEl.classList.remove("show");
+}
+
+checkBtn.addEventListener("click", check);
+dateInput.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
+
+loadCountries();
+</script>
+</body>
+</html>

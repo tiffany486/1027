@@ -17,12 +17,31 @@
     --warn: #fbbf24;
     --danger: #f87171;
     --border: #475569;
+    --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --btn-text: #0f172a;
+    --shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+  html[data-theme="light"] {
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --card2: #f1f5f9;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #0284c7;
+    --accent2: #4f46e5;
+    --ok: #059669;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --border: #cbd5e1;
+    --bg-gradient: linear-gradient(135deg, #e0f2fe 0%, #f8fafc 100%);
+    --btn-text: #ffffff;
+    --shadow: 0 10px 30px rgba(0,0,0,.08);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: var(--bg-gradient);
     color: var(--text);
     min-height: 100vh;
     padding: 24px;
@@ -37,7 +56,7 @@
     border-radius: 14px;
     padding: 20px;
     margin-bottom: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    box-shadow: var(--shadow);
   }
   .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
   .field { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 6px; }
@@ -57,7 +76,7 @@
     border: none;
     border-radius: 8px;
     background: var(--accent);
-    color: #0f172a;
+    color: var(--btn-text);
     font-weight: 600;
     font-size: 15px;
     cursor: pointer;
@@ -66,6 +85,18 @@
   button:hover { opacity: .9; }
   button:active { transform: scale(.98); }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  .theme-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: none;
+  }
+  .theme-btn:hover { opacity: .85; }
   .result { display: none; }
   .result.show { display: block; }
   .status {
@@ -112,10 +143,24 @@
   .info-box .k { font-size: 12px; color: var(--muted); }
   .info-box .v { font-size: 15px; font-weight: 600; margin-top: 2px; }
 </style>
+<script>
+  (function() {
+    try {
+      var saved = localStorage.getItem("theme");
+      var theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      document.documentElement.setAttribute("data-theme", theme);
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  })();
+</script>
 </head>
 <body>
 <div class="container">
   <header>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <button id="themeBtn" type="button" class="theme-btn" aria-label="切換深色/淺色模式">🌙 深色模式</button>
+    </div>
     <h1>📅 日期假期查詢器</h1>
     <p>輸入國家與日期，查詢是否為公眾假期（資料來源：<a href="https://date.nager.at" target="_blank" rel="noopener">Nager.Date</a> 公開 API）</p>
   </header>
@@ -175,6 +220,24 @@ const resultEl = document.getElementById("result");
 const errorCard = document.getElementById("errorCard");
 const errorMsg = document.getElementById("errorMsg");
 const loadStatus = document.getElementById("loadStatus");
+const themeBtn = document.getElementById("themeBtn");
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  try { localStorage.setItem("theme", theme); } catch (e) {}
+  if (themeBtn) {
+    themeBtn.textContent = theme === "light" ? "☀️ 淺色模式" : "🌙 深色模式";
+    themeBtn.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
+  }
+}
+
+// initial
+applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
+
+themeBtn.addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  applyTheme(cur === "dark" ? "light" : "dark");
+});
 
 // default date = today
 const today = new Date();
